@@ -28,6 +28,16 @@ module FileUtils
             end
         end
     end
+
+    def method_missing(method_name,*args,&block)
+        if Integrake.vim_exists?("*#{method_name}") # if it's a Vim function
+            return VIM::evaluate("#{method_name}(#{Integrake.to_vim(*args)})")
+        elsif 2==Integrake.vim_exists_code(":#{method_name}") # if it's a Vim command
+            VIM::command("#{method_name} #{args.join(' ')}")
+        else
+            super
+        end
+    end
 end
 
 Rake.application.init
@@ -37,7 +47,11 @@ module Integrake
     @@rakefile_name=nil
     @@rakefile_last_changed=nil
 
-    def self.to_vim(source)
+    def self.to_vim(*sources)
+        if 1!=sources.count
+            return sources.map{|e|Integrake.to_vim(e)}
+        end
+        source=sources[0]
         if source.is_a? String or source.is_a? Symbol
             return "'#{source.to_s.gsub("'","''")}'"
         elsif source.is_a? Numeric
@@ -47,17 +61,19 @@ module Integrake
         end
     end
 
-    def self.vim_var_exists?(varname)
-        return 0!=VIM::evaluate("exists('#{varname}')")
+    def self.to_vim_splice(*sources)
     end
 
-    def self.vim_read_var(varname)
-        return VIM::evaluate(varname)
+    def self.vim_exists_code(identifier)
+        return VIM::evaluate("exists('#{identifier}')")
+    end
+    def self.vim_exists?(identifier)
+        return 0!=Integrake.vim_exists_code(identifier)
     end
 
     def self.vim_read_vars(*varnames)
         return varnames.map do|varname|
-            Integrake.vim_read_var(varname)
+            VIM::evaluate(varname)
         end
     end
 
@@ -72,10 +88,10 @@ module Integrake
     end
 
     def self.prepare
-        unless Integrake.vim_var_exists?('g:integrake_filePrefix')
+        unless Integrake.vim_exists?('g:integrake_filePrefix')
             fail "You can't use Integrake until you set g:integrake_filePrefix"
         end
-        rakefile_name="#{Integrake.vim_read_var('g:integrake_filePrefix')}.integrake"
+        rakefile_name="#{VIM::evaluate('g:integrake_filePrefix')}.integrake"
         rakefile_last_changed=File.mtime(rakefile_name)
 
         if rakefile_name!=@@rakefile_name or rakefile_last_changed!=@@rakefile_last_changed

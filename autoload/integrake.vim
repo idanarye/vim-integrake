@@ -5,7 +5,7 @@ endfunction
 
 function! integrake#invoke(...)
     if a:0>0
-        ruby Integrake.invoke(*Integrake.vim_read_var('a:000'))
+        ruby Integrake.invoke(*VIM::evaluate('a:000'))
     else
         ruby Integrake.prompt_and_invoke
     endif
