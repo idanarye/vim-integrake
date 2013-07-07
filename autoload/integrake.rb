@@ -31,6 +31,14 @@ module FileUtils
         end
     end
 
+    def cmd(*args)
+        return VIM::command(*args)
+    end
+
+    def evl(*args)
+        return VIM::evaluate(*args)
+    end
+
     def method_missing(method_name,*args,&block)
         if Integrake.vim_exists?("*#{method_name}") # if it's a Vim function
             return VIM::evaluate("#{method_name}(#{Integrake.to_vim(*args)})")
