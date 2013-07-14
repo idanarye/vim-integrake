@@ -71,9 +71,6 @@ module Integrake
         end
     end
 
-    def self.to_vim_splice(*sources)
-    end
-
     def self.vim_exists_code(identifier)
         return VIM::evaluate("exists('#{identifier}')")
     end
@@ -121,12 +118,31 @@ module Integrake
         return
     end
 
-    def self.invoke(taskname,*args)
-        Integrake.prepare
-        Rake::Task[taskname].invoke(*args)
+    def self.invoke_with_range(line1,line2,count,task,*args)
+        $range=if -1<count
+                   {
+                       :type=>{
+                           'v'=>:char,
+                           'V'=>:line,
+                           "\x16"=>:block,
+                       }[VIM::evaluate('visualmode()')],
+                       :line1=>line1,
+                       :line2=>line2,
+                   }
+               end
+        begin
+            task.invoke(*args)
+        ensure
+            $range=nil
+        end
     end
 
-    def self.prompt_and_invoke
+    def self.invoke(line1,line2,count,taskname,*args)
+        Integrake.prepare
+        invoke_with_range(line1,line2,count,Rake::Task[taskname],*args)
+    end
+
+    def self.prompt_and_invoke(line1,line2,count)
         Integrake.prepare
         tasks=Rake::Task.tasks
         list_for_input_query=['Select task:']+tasks.each_with_index.map do|t,i|
@@ -148,7 +164,7 @@ module Integrake
                 end
             end
             puts ' '
-            chosen_task.invoke(*args)
+            invoke_with_range(line1,line2,count,chosen_task,*args)
         end
     end
 

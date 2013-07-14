@@ -3,11 +3,11 @@ function! integrake#runInShell(cmd)
     return v:shell_error
 endfunction
 
-function! integrake#invoke(...)
+function! integrake#invoke(line1,line2,count,...)
     if a:0>0
-        ruby Integrake.invoke(*VIM::evaluate('a:000'))
+        ruby Integrake.invoke(*Integrake.vim_read_vars('a:line1','a:line2','a:count'),*VIM::evaluate('a:000'))
     else
-        ruby Integrake.prompt_and_invoke
+        ruby Integrake.prompt_and_invoke(*Integrake.vim_read_vars('a:line1','a:line2','a:count'))
     endif
 endfunction
 
