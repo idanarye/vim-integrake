@@ -4,7 +4,7 @@ require 'shellwords'
 
 Rake::TaskManager.record_task_metadata=true
 
-module FileUtils
+module IntegrakeUtils
     def make_command(*cmd)
         if 1<cmd.length
             return "#{cmd[0]} #{Shellwords.shelljoin(cmd.drop(1))}"
@@ -12,11 +12,11 @@ module FileUtils
             return cmd[0]
         end
     end
-    private :make_command
+    #private :make_command
 
 
     def system(*cmd)
-        return VIM::evaluate("integrake#runInShell(#{Integrake.to_vim(make_command(*cmd))})")
+        return VIM::evaluate("integrake#runInShell(#{make_command(*cmd).to_vim})")
     end
 
     def sh(*cmd,&block)
@@ -39,9 +39,50 @@ module FileUtils
         return VIM::evaluate(*args)
     end
 
+    def curbuf
+        return VIM::Buffer.current
+    end
+
+    def selection
+        return nil unless $range
+        return ($range[:line1]..$range[:line2]).map do|line_number|
+            line=curbuf[line_number]
+            from=0
+            to=line.length
+            case $range[:type]
+            when :char
+                if $range[:line1]==line_number
+                    from=$range[:col1]-1
+                end
+                if $range[:line2]==line_number
+                    to=$range[:col2]-1
+                end
+            when :block
+                while vim_call(:strdisplaywidth,line[0...from])<$range[:vcol1]
+                    from+=1
+                end
+                from-=1
+                to=0
+                while vim_call(:strdisplaywidth,line[0...to])<$range[:vcol2]
+                    to+=1
+                end
+                to-=1
+            end
+            line[from...to]
+        end
+    end
+
+    def curwin
+        return VIM::Window.current
+    end
+
+    def vim_call(function_name,*args)
+        return VIM::evaluate("#{function_name}(#{args.map(&:to_vim).join(', ')})")
+    end
+
     def method_missing(method_name,*args,&block)
         if Integrake.vim_exists?("*#{method_name}") # if it's a Vim function
-            return VIM::evaluate("#{method_name}(#{Integrake.to_vim(*args)})")
+            return vim_call(method_name,*args)
         elsif 2==Integrake.vim_exists_code(":#{method_name}") # if it's a Vim command
             VIM::command("#{method_name} #{args.join(' ')}")
         else
@@ -50,26 +91,54 @@ module FileUtils
     end
 end
 
+VAR=Object.new
+def VAR.[](varname)
+    if Integrake.vim_exists?(varname)
+        return evl(varname)
+    else
+        return nil
+    end
+end
+def VAR.[]=(varname,value)
+    Integrake.vim_write_var(varname,value)
+end
+
+def var
+    return VAR
+end
+
+class Object
+    def to_vim
+        return "#{self}".to_vim
+    end
+end
+
+class String
+    def to_vim
+        return "'#{self.to_s.gsub("'","''").gsub("\n",'\'."\\n".\'')}'"
+    end
+end
+
+class Array
+    def to_vim
+        return "[#{self.map(&:to_vim).join(',')}]"
+    end
+end
+
+class Numeric
+    def to_vim
+        return self.to_s
+    end
+end
+
 Rake.application.init
 Rake.application.clear
+
+include IntegrakeUtils
 
 module Integrake
     @@rakefile_name=nil
     @@rakefile_last_changed=nil
-
-    def self.to_vim(*sources)
-        if 1!=sources.count
-            return sources.map{|e|Integrake.to_vim(e)}
-        end
-        source=sources[0]
-        if source.is_a? String or source.is_a? Symbol
-            return "'#{source.to_s.gsub("'","''")}'"
-        elsif source.is_a? Numeric
-            return source.to_s
-        elsif source.is_a? Array
-            return "[#{source.map{|e|to_vim(e)}.join(',')}]"
-        end
-    end
 
     def self.vim_exists_code(identifier)
         return VIM::evaluate("exists('#{identifier}')")
@@ -85,13 +154,11 @@ module Integrake
     end
 
     def self.vim_return_value(value)
-        $x= "return #{to_vim(value)}"
-        $y=value
-        VIM::command("return #{to_vim(value)}")
+        VIM::command("return #{value.to_vim}")
     end
 
     def self.vim_write_var(varname,newvalue)
-        VIM::command("let #{varname} = #{self.to_vim(newvalue)}")
+        VIM::command("let #{varname} = #{newvalue.to_vim}")
     end
 
     def self.rakefile_name
@@ -130,6 +197,12 @@ module Integrake
                        :line2=>line2,
                    }
                end
+        if $range and [:char,:block].include?($range[:type])
+            $range[:col1]=vim_call(:col,"'<")
+            $range[:col2]=vim_call(:col,"'>")
+            $range[:vcol1]=vim_call(:virtcol,"'<")
+            $range[:vcol2]=vim_call(:virtcol,"'>")
+        end
         begin
             task.invoke(*args)
         ensure
@@ -152,12 +225,12 @@ module Integrake
                 end
             }"
         end
-        chosen_task_number=VIM::evaluate("inputlist(#{to_vim(list_for_input_query)})")
+        chosen_task_number=VIM::evaluate("inputlist(#{list_for_input_query.to_vim})")
         if chosen_task_number.between?(1,tasks.count)
             chosen_task=tasks[chosen_task_number-1]
             known_args=[]
             args=chosen_task.arg_names.map do|arg_name|
-                arg=VIM::evaluate("input(#{Integrake.to_vim("#{[*known_args,''].join(', ')}#{arg_name}: ")})")
+                arg=VIM::evaluate("input(#{"#{[*known_args,''].join(', ')}#{arg_name}: ".to_vim})")
                 unless arg.empty?
                     known_args<<"#{arg_name}: #{arg}"
                     arg
@@ -186,7 +259,7 @@ module Integrake
         end
         list_for_input_query=['Select template for integrake_file:']+
             canadidate_files.each_with_index.map{|f,i|"#{i+1} #{f[1]}"}
-        chosen_file_number=VIM::evaluate("inputlist(#{to_vim(list_for_input_query)})")
+        chosen_file_number=VIM::evaluate("inputlist(#{list_for_input_query.to_vim})")
         if chosen_file_number.between?(1,canadidate_files.count)
             chosen_file=canadidate_files[chosen_file_number-1]
             puts ' '
@@ -195,7 +268,7 @@ module Integrake
                 if 'yes'!=VIM::evaluate("input('#{rakefile_name} already exists! Type \"yes\" to override it: ')")
                     return
                 end
-                buffer_to_update=VIM::evaluate("bufnr(#{Integrake.to_vim(rakefile_name)})")
+                buffer_to_update=VIM::evaluate("bufnr(#{rakefile_name.to_vim})")
                 buffer_to_update=nil if -1==buffer_to_update
             end
             FileUtils.copy_file(File.join(chosen_file),rakefile_name)
