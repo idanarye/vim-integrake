@@ -4,7 +4,7 @@ require 'shellwords'
 
 Rake::TaskManager.record_task_metadata=true
 
-module IntegrakeUtils
+module FileUtils
     def make_command(*cmd)
         if 1<cmd.length
             return "#{cmd[0]} #{Shellwords.shelljoin(cmd.drop(1))}"
@@ -30,7 +30,9 @@ module IntegrakeUtils
             end
         end
     end
+end
 
+module IntegrakeUtils
     def cmd(*args)
         return VIM::command(*args)
     end
@@ -198,10 +200,14 @@ module Integrake
                    }
                end
         if $range and [:char,:block].include?($range[:type])
-            $range[:col1]=vim_call(:col,"'<")
-            $range[:col2]=vim_call(:col,"'>")
-            $range[:vcol1]=vim_call(:virtcol,"'<")
-            $range[:vcol2]=vim_call(:virtcol,"'>")
+            if $range[:line1]==vim_call(:line,"'<") and $range[:line2]==vim_call(:line,"'>")
+                $range[:col1]=vim_call(:col,"'<")
+                $range[:col2]=vim_call(:col,"'>")
+                $range[:vcol1]=vim_call(:virtcol,"'<")
+                $range[:vcol2]=vim_call(:virtcol,"'>")
+            else
+                $range[:type]=:line
+            end
         end
         begin
             task.invoke(*args)
