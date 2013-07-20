@@ -19,6 +19,16 @@ function! integrake#editTask(task)
     ruby Integrake.edit_task(VIM::evaluate('a:task'))
 endfunction
 
+function! integrake#editTask_split(task)
+    split
+    ruby Integrake.edit_task(VIM::evaluate('a:task'))
+endfunction
+
+function! integrake#editTask_vsplit(task)
+    vsplit
+    ruby Integrake.edit_task(VIM::evaluate('a:task'))
+endfunction
+
 function! integrake#complete(argLead,cmdLine,cursorPos)
     ruby Integrake.vim_return_value(Integrake.complete(*Integrake.vim_read_vars('a:argLead','a:cmdLine','a:cursorPos')))
 endfunction
