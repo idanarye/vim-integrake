@@ -141,6 +141,7 @@ include IntegrakeUtils
 module Integrake
     @@rakefile_name=nil
     @@rakefile_last_changed=nil
+    @@loaded_files_last_changed={}
 
     def self.vim_exists_code(identifier)
         return VIM::evaluate("exists('#{identifier}')")
@@ -174,7 +175,10 @@ module Integrake
         rakefile_name=self.rakefile_name
         rakefile_last_changed=File.mtime(rakefile_name)
 
-        if rakefile_name!=@@rakefile_name or rakefile_last_changed!=@@rakefile_last_changed
+        if(rakefile_name!=@@rakefile_name or rakefile_last_changed!=@@rakefile_last_changed or
+           @@loaded_files_last_changed.any?{|file,last_changed|File.mtime(file)!=last_changed})
+
+            @@loaded_files_last_changed={}
             @@rakefile_name=rakefile_name
             @@rakefile_last_changed=rakefile_last_changed
             Rake.application.clear
@@ -185,6 +189,13 @@ module Integrake
             end
         end
         return
+    end
+
+    def self.load(filename)
+        full_path=File.expand_path(filename)
+        file_last_changed=File.mtime(full_path)
+        @@loaded_files_last_changed[full_path]=file_last_changed
+        Kernel.load(full_path)
     end
 
     def self.invoke_with_range(line1,line2,count,task,*args)
