@@ -181,8 +181,18 @@ module Integrake
             @@loaded_files_last_changed={}
             @@rakefile_name=rakefile_name
             @@rakefile_last_changed=rakefile_last_changed
+
             Rake.application.clear
+
+            #Load auto-loaded .rb files from runtime path:
+            var['&runtimepath'].split(',').map{|e|File.join(e,'integrake')}.select{|e|File.directory?(e)}.each do|integrake_dir|
+                Dir.foreach(integrake_dir).grep(/\.rb$/) do|f|
+                    Integrake.load File.join(integrake_dir,f)
+                end
+            end
+
             Rake.load_rakefile(rakefile_name)
+
         else
             Rake::Task.tasks.each do|task|
                 task.reenable
