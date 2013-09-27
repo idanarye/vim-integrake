@@ -96,7 +96,7 @@ end
 VAR=Object.new
 def VAR.[](varname)
     if Integrake.vim_exists?(varname)
-        return evl(varname)
+        return VIM::evaluate(varname)
     else
         return nil
     end
@@ -130,6 +130,24 @@ end
 class Numeric
     def to_vim
         return self.to_s
+    end
+end
+
+class NilClass
+    def to_vim
+        return '0'
+    end
+end
+
+class FalseClass
+    def to_vim
+        return '0'
+    end
+end
+
+class TrueClass
+    def to_vim
+        return '1'
     end
 end
 
@@ -185,7 +203,7 @@ module Integrake
             Rake.application.clear
 
             #Load auto-loaded .rb files from runtime path:
-            var['&runtimepath'].split(',').map{|e|File.join(e,'integrake')}.select{|e|File.directory?(e)}.each do|integrake_dir|
+            VIM::evaluate('&runtimepath').split(',').map{|e|File.join(e,'integrake')}.select{|e|File.directory?(e)}.each do|integrake_dir|
                 Dir.foreach(integrake_dir).grep(/\.rb$/) do|f|
                     Integrake.load File.join(integrake_dir,f)
                 end
@@ -321,7 +339,9 @@ module Integrake
                 return
             end
         end
-        VIM::command "edit #{rakefile_name}"
+        unless VIM::evaluate('expand("%")')==rakefile_name
+            VIM::command "edit #{rakefile_name}"
+        end
         last_line=VIM::Buffer.current.count
         if exists
             VIM::Buffer.current.append(last_line,"")
