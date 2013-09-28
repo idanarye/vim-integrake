@@ -1,3 +1,10 @@
+REQUIREMENTS
+============
+
+ * Ruby installed on your computer(Tested with Ruby 1.9 and 2.0)
+ * Vim compiled with ruby support(check with `:echo has('ruby')` from Vim)
+ * Rake gem installed(install with `gem install rake` from the command line)
+
 INTRODUCTION
 ============
 
