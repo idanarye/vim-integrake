@@ -4,7 +4,7 @@
 Author:  Idan Arye <https://github.com/someboddy/>
 License: Same terms as Vim itself (see |license|)
 
-Version: 1.0.0
+Version: 1.0.1
 
 INTRODUCTION                                                       *integrake*
 
@@ -155,7 +155,7 @@ wrapper around "VIM::evaluate"(see |ruby-evaluate|).
 "curbuf" is a wrappwer around "VIM::Buffer.current" and "curwin" is a wrapper
 around "VIM::Windows.current".
 
-"selection" returns the selected text, if *IR* is called with a range.
+"selection" returns the selected text, if |IR| is called with a range.
 
 Any vim function can be called directly from Integrake by using the function's
 name. Example: >
