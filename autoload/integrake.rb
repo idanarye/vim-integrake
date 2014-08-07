@@ -83,7 +83,7 @@ module IntegrakeUtils
     def method_missing(method_name,*args,&block)
         if Integrake.vim_exists?("*#{method_name}") # if it's a Vim function
             return vim_call(method_name,*args)
-        elsif 2==Integrake.vim_exists_code(":#{method_name}") # if it's a Vim command
+        elsif 2==Integrake.vim_exists_code(":#{method_name.to_s.chomp('!')}") # if it's a Vim command
             VIM::command("#{method_name} #{args.join(' ')}")
         else
             super
