@@ -12,8 +12,6 @@ module FileUtils
             return cmd[0]
         end
     end
-    #private :make_command
-
 
     def system(*cmd)
         return VIM::evaluate("integrake#runInShell(#{make_command(*cmd).to_vim})")
@@ -90,6 +88,88 @@ module IntegrakeUtils
         else
             super
         end
+    end
+
+    def find_window_numbers(window_identifier)
+        if window_identifier.is_a? Integer
+            if 0<window_identifier and window_identifier<=VIM::Window.count
+                return [window_identifier]
+            else
+                return []
+            end
+        end
+
+        if window_identifier.is_a? Array
+            return window_identifier.flat_map{|single_identifier|find_window_numbers(single_identifier)}.compact.sort.uniq
+        end
+
+        if window_identifier.is_a? Regexp
+            return VIM::Window.count.times.map do|i|
+                if VIM::Window[i].buffer.name=~window_identifier
+                    i+1
+                end
+            end.compact
+        end
+
+        if window_identifier.is_a? Proc
+            if 0==window_identifier.arity
+                original_window=winnr()
+                begin
+                    return VIM::Window.count.times.map do|i|
+                        cmd "#{i+1}wincmd w"
+                        if window_identifier.call
+                            i+1
+                        end
+                    end.compact
+                ensure
+                    cmd "#{original_window}wincmd w"
+                end
+            elsif window_identifier.arity<=2
+                identifier_proc=if 1==window_identifier.arity
+                                    window_identifier
+                                else
+                                    lambda do|window_number|
+                                        window_identifier.call window_number,VIM::Window[window_number-1]
+                                    end
+                                end
+                return VIM::Window.count.times.map do|i|
+                    if identifier_proc.call(i+1)
+                        i+1
+                    end
+                end.compact
+            else
+                raise 'Arity for window identifiying proc can not be larger than 2'
+            end
+        end
+
+        return []
+    end
+
+    def find_window_number(window_identifier)
+        return find_window_numbers(window_identifier).first
+    end
+
+    def do_in_windows(window_identifier)
+        return unless window_identifier
+        if defined?(window_identifier.empty?)
+            return if window_identifier.empty?
+        end
+        window_numbers=find_window_numbers(window_identifier)
+        original_window=winnr()
+        result={}
+        begin
+            window_numbers.each do|window_number|
+                cmd "#{window_number}wincmd w"
+                result[window_number]=yield
+            end
+        ensure
+            cmd "#{original_window}wincmd w"
+        end
+        return result
+    end
+
+    def do_in_window(window_identifier,&block)
+        do_in_windows(find_window_number(window_identifier),&block).values.first
     end
 end
 
