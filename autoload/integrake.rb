@@ -150,9 +150,9 @@ module IntegrakeUtils
     end
 
     def do_in_windows(window_identifier)
-        return unless window_identifier
+        return ({}) unless window_identifier
         if defined?(window_identifier.empty?)
-            return if window_identifier.empty?
+            return ({}) if window_identifier.empty?
         end
         window_numbers=find_window_numbers(window_identifier)
         original_window=winnr()
@@ -169,7 +169,7 @@ module IntegrakeUtils
     end
 
     def do_in_window(window_identifier,&block)
-        do_in_windows(find_window_number(window_identifier),&block).values.first
+        return do_in_windows(find_window_number(window_identifier),&block).values.first
     end
 end
 
