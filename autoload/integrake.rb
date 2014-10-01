@@ -207,6 +207,12 @@ class Array
     end
 end
 
+class Hash
+    def to_vim
+        return "{#{self.map{|k,v|"#{k.to_vim}: #{v.to_vim}"}.join(',')}}"
+    end
+end
+
 class Numeric
     def to_vim
         return self.to_s
