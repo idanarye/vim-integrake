@@ -271,6 +271,25 @@ module Integrake
         VIM::command("let #{varname} = #{newvalue.to_vim}")
     end
 
+    def self.puts_error(error)
+        if error.is_a? Exception
+            Integrake.puts_error error.message
+            error.backtrace.each do|bt|
+                unless bt.start_with? __FILE__ or
+                    bt.start_with? File.dirname(method(:task).source_location[0])
+                    Integrake.puts_error bt
+                end
+            end
+        else
+            VIM::command('echohl Error')
+            [*error].each do|e|
+                VIM::command "echo #{e.to_vim}"
+            end
+            VIM::command('echohl None')
+        end
+        return false
+    end
+
     def self.rakefile_name
         unless Integrake.vim_exists?('g:integrake_filePrefix')
             fail "You can't use Integrake until you set g:integrake_filePrefix"
@@ -298,14 +317,20 @@ module Integrake
                 end
             end
 
-            @@integrake_environment.instance_eval IO.read(rakefile_name),rakefile_name
+            begin
+                @@integrake_environment.instance_eval IO.read(rakefile_name),rakefile_name
+            rescue => exception
+                @@rakefile_last_changed=nil
+                Integrake.puts_error exception
+                return false
+            end
 
         else
             Rake::Task.tasks.each do|task|
                 task.reenable
             end
         end
-        return
+        return true
     end
 
     def self.load(filename)
@@ -345,39 +370,54 @@ module Integrake
     end
 
     def self.invoke(line1,line2,count,taskname,*args)
-        Integrake.prepare
-        invoke_with_range(line1,line2,count,Rake::Task[taskname],*args)
+        if Integrake.prepare
+            begin
+                invoke_with_range(line1,line2,count,Rake::Task[taskname],*args)
+            rescue => exception
+                Integrake.puts_error exception
+            end
+        end
     end
 
     def self.prompt_and_invoke(line1,line2,count)
-        Integrake.prepare
-        tasks=Rake::Task.tasks
-        list_for_input_query=['Select task:']+tasks.each_with_index.map do|t,i|
-            "#{i+1} #{t.name}#{
-                unless t.arg_names.empty?
-                    "(#{t.arg_names.join(', ')})"
+        if Integrake.prepare
+            tasks=Rake::Task.tasks
+            list_for_input_query=['Select task:']+tasks.each_with_index.map do|t,i|
+                "#{i+1} #{t.name}#{
+                    unless t.arg_names.empty?
+                        "(#{t.arg_names.join(', ')})"
+                    end
+                }"
+            end
+            chosen_task_number=VIM::evaluate("inputlist(#{list_for_input_query.to_vim})")
+            if chosen_task_number.between?(1,tasks.count)
+                chosen_task=tasks[chosen_task_number-1]
+                known_args=[]
+                args=chosen_task.arg_names.map do|arg_name|
+                    arg=VIM::evaluate("input(#{"#{[*known_args,''].join(', ')}#{arg_name}: ".to_vim})")
+                    unless arg.empty?
+                        known_args<<"#{arg_name}: #{arg}"
+                        arg
+                    end
                 end
-            }"
-        end
-        chosen_task_number=VIM::evaluate("inputlist(#{list_for_input_query.to_vim})")
-        if chosen_task_number.between?(1,tasks.count)
-            chosen_task=tasks[chosen_task_number-1]
-            known_args=[]
-            args=chosen_task.arg_names.map do|arg_name|
-                arg=VIM::evaluate("input(#{"#{[*known_args,''].join(', ')}#{arg_name}: ".to_vim})")
-                unless arg.empty?
-                    known_args<<"#{arg_name}: #{arg}"
-                    arg
+                puts ' '
+                begin
+                    invoke_with_range(line1,line2,count,chosen_task,*args)
+                rescue => exception
+                    Integrake.puts_error exception
                 end
             end
-            puts ' '
-            invoke_with_range(line1,line2,count,chosen_task,*args)
         end
     end
 
     def self.complete(argLead,cmdLine,cursorPos)
-        Integrake.prepare
-        return Rake::Task.tasks.map{|e|e.name}.select{|e|e.start_with?(argLead)}
+        if Integrake.prepare
+            begin
+                return Rake::Task.tasks.map{|e|e.name}.select{|e|e.start_with?(argLead)}
+            rescue => exception
+                Integrake.puts_error exception
+            end
+        end
     end
 
     def self.prompt_to_grab
