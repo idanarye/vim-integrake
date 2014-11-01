@@ -30,7 +30,7 @@ module FileUtils
     end
 end
 
-module IntegrakeUtils
+class IntegrakeEnvironment
     def cmd(*args)
         return VIM::command(*args)
     end
@@ -240,12 +240,15 @@ end
 Rake.application.init
 Rake.application.clear
 
-include IntegrakeUtils
+#include IntegrakeEnvironment
 
 module Integrake
     @@rakefile_name=nil
     @@rakefile_last_changed=nil
     @@loaded_files_last_changed={}
+    @@integrake_environment=IntegrakeEnvironment.new
+    @@integrake_environment.instance_eval 'Object.include Kernel'
+    @@integrake_environment.instance_eval 'Object.include Rake::DSL'
 
     def self.vim_exists_code(identifier)
         return VIM::evaluate("exists('#{identifier}')")
@@ -279,7 +282,7 @@ module Integrake
         rakefile_name=self.rakefile_name
         rakefile_last_changed=File.mtime(rakefile_name)
 
-        if(rakefile_name!=@@rakefile_name or rakefile_last_changed!=@@rakefile_last_changed or
+        if (rakefile_name!=@@rakefile_name or rakefile_last_changed!=@@rakefile_last_changed or
            @@loaded_files_last_changed.any?{|file,last_changed|File.mtime(file)!=last_changed})
 
             @@loaded_files_last_changed={}
@@ -295,7 +298,7 @@ module Integrake
                 end
             end
 
-            Rake.load_rakefile(rakefile_name)
+            @@integrake_environment.instance_eval IO.read(rakefile_name),rakefile_name
 
         else
             Rake::Task.tasks.each do|task|
