@@ -237,10 +237,52 @@ class TrueClass
     end
 end
 
+class Rake::Task
+    def direct_dependants
+        search_next=application.top_level_tasks.clone
+        already_searched=Set.new
+        result=[]
+
+        until search_next.empty?
+            task_name=search_next.pop
+            tsk=Rake::Task[task_name]
+            if tsk.prerequisites.include? self.name
+                result<<tsk
+            end
+            tsk.prerequisites.each do|prerequisite_name|
+                if already_searched.add?(prerequisite_name)
+                    search_next<<prerequisite_name
+                end
+            end
+        end
+
+        result
+    end
+    def set_passed_data(passed_from,data)
+        @integrake_data_from_prerequisite={} unless @integrake_data_from_prerequisite
+        @integrake_data_from_prerequisite[passed_from.to_s]=data
+    end
+    def pass_data(data)
+        direct_dependants.each do|dd|
+            dd.set_passed_data name.to_s,data
+        end
+    end
+    def [](prerequisite_name)
+        prerequisite_name=prerequisite_name.to_s
+        if @integrake_data_from_prerequisite and @integrake_data_from_prerequisite.has_key?(prerequisite_name)
+            return @integrake_data_from_prerequisite[prerequisite_name]
+        elsif not(Rake::Task.task_defined? prerequisite_name)
+            raise "No such task '#{prerequisite_name}'"
+        elsif not(self.prerequisites.include? prerequisite_name)
+            raise "Task '#{prerequisite_name}' is not a direct prerequisite of '#{name}'"
+        else
+            raise "Task '#{prerequisite_name}' did not pass any data to '#{name}'"
+        end
+    end
+end
+
 Rake.application.init
 Rake.application.clear
-
-#include IntegrakeEnvironment
 
 module Integrake
     @@rakefile_name=nil
@@ -363,6 +405,7 @@ module Integrake
             end
         end
         begin
+            task.application.instance_variable_set :@top_level_tasks,[task.name]
             task.invoke(*args)
         ensure
             $range=nil
@@ -481,5 +524,47 @@ module Integrake
         VIM::Buffer.current.append(last_line+2,"")
         VIM::Buffer.current.append(last_line+3,"end")
         VIM::command (last_line+3).to_s
+    end
+
+
+
+    class ChooseOptionTask < Rake::Task
+        @@cache={}
+        def needed?
+            return true
+        end
+
+        def self.define_task(name,options)
+            tsk=Rake.application.define_task self,name do|t|
+                if Rake.application.top_level_tasks.include?(name.to_s) or @@cache[name].nil?
+                    chosen_option=prompt_for_options(name,options)
+                    @@cache[name]=chosen_option
+                else
+                    chosen_option=@@cache[name]
+                end
+                t.pass_data(chosen_option)
+            end
+            tsk.locations<<caller.select{|e|not e.start_with? __FILE__}.first
+        end
+
+        private
+        def self.prompt_for_options(name,options)
+            number_length=options.count.to_s.length
+            list_for_input_query=options.each_with_index.map do|option,index|
+                index_text=(index+1).to_s
+                "#{index_text})#{' '*(number_length-index_text.length)} #{option}"
+            end
+            list_for_input_query.unshift("Chose #{name}:")
+            chosen_option_number=VIM::evaluate("inputlist(#{list_for_input_query.to_vim})")
+            if chosen_option_number<1 or options.length<chosen_option_number
+                return nil
+            else
+                return options[chosen_option_number-1]
+            end
+        end
+    end
+
+    def self.option(name,*options)
+        ChooseOptionTask::define_task name,options
     end
 end

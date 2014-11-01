@@ -102,11 +102,11 @@ Integrake tasks are written in the Integrake file. The Integrake file must be
 at the current directory(=the root of the project) and it's name is the value
 of |g:integrake_filePrefix| plus the ".integrake" suffix.
 
-You can use the *IRedit* command to open your Integrake file for editing. You
+You can use the *:IRedit* command to open your Integrake file for editing. You
 can optionally supply a task name as an argument to jump directly to the
 definition of an existing task, or to automatically create a new empty task.
 
-*IRsedit* and *IRvedit* are work similarly, except they open the Integrake
+*:IRsedit* and *:IRvedit* are work similarly, except they open the Integrake
 buffer in a horizontally or vertically split window.
 
 The syntax for the Integrake file is the same as a Rakefile syntax. You can
@@ -115,16 +115,16 @@ read more about Rake syntax at <http://rake.rubyforge.org/>
 
 RUNNING TASKS                                      *integrake-running-tasks*
 
-Use the *IR* command to run tasks.
+Use the *:IR* command to run tasks.
 
-|IR| with no arguments displays a list of tasks. Selecting a task from the
+|:IR| with no arguments displays a list of tasks. Selecting a task from the
 list will prompt you to enter the arguments(if the task has any arguments) and
 then run the tasks(with the supplied arguments).
 
-|IR| with arguments runs a task directly. The first argument is the name of
+|:IR| with arguments runs a task directly. The first argument is the name of
 the task to run. The other arguments are sent to the task as task arguments.
 
-If |IR| is called with a range, the Integrake task will have access to that
+If |:IR| is called with a range, the Integrake task will have access to that
 range via the |$range| variable.
 
 
@@ -138,7 +138,7 @@ Put the template files in the folders specified there. The template files
 should be the description of that template file - usually the language or
 framework that template file targets - followed by ".integrake".
 
-The *IRgrab* command displays your list of template files. When you choose a
+The *:IRgrab* command displays your list of template files. When you choose a
 file, it copies that file as is to be your Integrake file for the current
 project. If you already have an Integrake file for the current project, you
 will be prompted to override it.
@@ -155,7 +155,7 @@ wrapper around "VIM::evaluate"(see |ruby-evaluate|).
 "curbuf" is a wrappwer around "VIM::Buffer.current" and "curwin" is a wrapper
 around "VIM::Windows.current".
 
-"selection" returns the selected text, if |IR| is called with a range.
+"selection" returns the selected text, if |:IR| is called with a range.
 
 Any vim function can be called directly from Integrake by using the function's
 name. Example: >
@@ -223,3 +223,48 @@ be reloaded.
 
 You can also put *.rb files in "integrake" directories in Vim's runtime path to
 make Integrake load them automatically.
+
+
+PASSING DATA FROM PREREQUISITES                      *integrake-pass_data*
+
+Integrake has a mechanism for passing data from prerequisite tasks to the task
+that called them. The data is passed only to task that has the passer as a
+direct prerequisite(though task higher in the chain can add that prerequisite,
+and it'll only be called once and pass the same data to all the tasks that
+require it).
+
+To pass data, from the prerequisite task call the "pass_data" method of the
+task object(the first argument to the Ruby block defining the task). To use
+that data in the caller task, use the subscript operator of the caller task
+object with the name of the task that passed the data. So, if this is our
+integrake file:
+
+    task :data_passer do|t|
+        t.pass_data 'some data'
+    end
+
+    task :data_user=>[:data_passer] do|t|
+        puts t[:data_passer]
+    end
+
+Calling "|:IR| data_user" will print "some data".
+
+
+OPTIONS CHOOSER MECHANISM                       *integrake-options-chooser*
+
+Integrake's options chooser mechanism allows you to define options you can use
+in your tasks, with a selection interface that remembers your decisions for
+minimal interference with your workflow. To create such an option, use the
+*Integrake.option* method, where the first argument is the name of the option
+and the rest of the arguments are the options to choose from:
+
+    Integrake.option :color,:red,:green,:blue
+
+    task :print_chosen_color=>[:color] do|t|
+        puts t[:color]
+    end
+
+With this, when we first run "|:IR| print_chosen_color" we are prompted to
+choose a color, and then that color name is printed. If we run it again - we
+get the same color without being prompted! If we want to be prompted again, we
+need to run "|:IR| color" directly.

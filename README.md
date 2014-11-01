@@ -211,5 +211,54 @@ To load a Ruby file that might change in Integrake use `Integrake.load`
 instead of Ruby's `load`. this will ensure that if the file is changed it will
 be reloaded.
 
-You can also put *.rb files in `integrake` directories in Vim's runtime path to
+You can also put \*.rb files in `integrake` directories in Vim's runtime path to
 make Integrake load them automatically.
+
+
+PASSING DATA FROM PREREQUISITES
+===============================
+
+Integrake has a mechanism for passing data from prerequisite tasks to the task
+that called them. The data is passed only to task that has the passer as a
+direct prerequisite(though task higher in the chain can add that prerequisite,
+and it'll only be called once and pass the same data to all the tasks that
+require it).
+
+To pass data, from the prerequisite task call the `pass_data` method of the
+task object(the first argument to the Ruby block defining the task). To use
+that data in the caller task, use the subscript operator of the caller task
+object with the name of the task that passed the data. So, if this is our
+integrake file:
+```ruby
+
+    task :data_passer do|t|
+        t.pass_data 'some data'
+    end
+
+    task :data_user=>[:data_passer] do|t|
+        puts t[:data_passer]
+    end
+```
+Calling `:IR data_user` will print "some data".
+
+
+OPTIONS CHOOSER MECHANISM
+=========================
+
+Integrake's options chooser mechanism allows you to define options you can use
+in your tasks, with a selection interface that remembers your decisions for
+minimal interference with your workflow. To create such an option, use the
+`Integrake.option` method, where the first argument is the name of the option
+and the rest of the arguments are the options to choose from:
+```ruby
+    Integrake.option :color,:red,:green,:blue
+
+    task :print_chosen_color=>[:color] do|t|
+        puts t[:color]
+    end
+```
+
+With this, when we first run `:IR print_chosen_color` we are prompted to
+choose a color, and then that color name is printed. If we run it again - we
+get the same color without being prompted! If we want to be prompted again, we
+need to run `:IR color` directly.
