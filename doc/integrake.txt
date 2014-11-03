@@ -268,3 +268,12 @@ With this, when we first run "|:IR| print_chosen_color" we are prompted to
 choose a color, and then that color name is printed. If we run it again - we
 get the same color without being prompted! If we want to be prompted again, we
 need to run "|:IR| color" directly.
+
+You can also use hash arguments:
+
+    Integrake.option :number,
+        'ten'=>10,
+        'twenty'=>20
+
+With this, the keys will be displayed when you are prompted, but the data
+you'll get with the subscript operator is the value of the chosen key.

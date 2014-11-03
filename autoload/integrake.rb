@@ -535,14 +535,26 @@ module Integrake
         end
 
         def self.define_task(name,options)
+            options_captions=if options.is_a? Hash
+                                 options.keys
+                             else
+                                 options
+                             end
             tsk=Rake.application.define_task self,name do|t|
+                if options.is_a? Hash and options[@@cache[name]].nil?
+                    @@cache.delete name
+                end
                 if Rake.application.top_level_tasks.include?(name.to_s) or @@cache[name].nil?
-                    chosen_option=prompt_for_options(name,options)
+                    chosen_option=prompt_for_options(name,options_captions)
                     @@cache[name]=chosen_option
                 else
                     chosen_option=@@cache[name]
                 end
-                t.pass_data(chosen_option)
+                if options.is_a? Hash
+                    t.pass_data(options[chosen_option])
+                else
+                    t.pass_data(chosen_option)
+                end
             end
             tsk.locations<<caller.select{|e|not e.start_with? __FILE__}.first
         end
@@ -565,6 +577,10 @@ module Integrake
     end
 
     def self.option(name,*options)
-        ChooseOptionTask::define_task name,options
+        if 1==options.length and options[0].is_a? Hash
+            ChooseOptionTask::define_task name,options[0]
+        else
+            ChooseOptionTask::define_task name,options
+        end
     end
 end
