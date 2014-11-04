@@ -541,8 +541,10 @@ module Integrake
                                  options
                              end
             tsk=Rake.application.define_task self,name do|t|
-                if options.is_a? Hash and options[@@cache[name]].nil?
-                    @@cache.delete name
+                if options.is_a? Hash 
+                    @@cache.delete name if options[@@cache[name]].nil?
+                else
+                    @@cache.delete name unless options.include? @@cache[name]
                 end
                 if Rake.application.top_level_tasks.include?(name.to_s) or @@cache[name].nil?
                     chosen_option=prompt_for_options(name,options_captions)
