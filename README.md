@@ -91,7 +91,7 @@ you use Windows) and by plugins like NERDTree.
 
 Example:
 ```vim
-    let g:integrake_filePrefix='.idanarye'
+    let g:integrake_filePrefix = '.idanarye'
 ```
 If you want to use `integrake-templates` - premade files that you can easily
 grab for new projects - you need to set `g:integrake_grabDirs` to a
@@ -99,7 +99,7 @@ directory(or a list of directories) that contain those templates.
 
 Example:
 ```vim
-    let g:integrake_grabDirs=[expand('<sfile>:p:h').'/my-configurations/integrake-templates']
+    let g:integrake_grabDirs = [expand('<sfile>:p:h').'/my-configurations/integrake-templates']
 ```
 
 CREATING TASKS
@@ -191,9 +191,9 @@ print the string `hello` with `echo`, use
 
 `var` can be used like an hash to read and write variables. Example:
 ```ruby
-    var['g:foo']=12
+    var['g:foo'] = 12
     cmd 'echo g:foo' #prints 12
-    cmd 'let g:foo=14'
+    cmd 'let g:foo = 14'
     puts var['g:foo'] #prints 14
 ```
 
@@ -235,7 +235,7 @@ integrake file:
         t.pass_data 'some data'
     end
 
-    task :data_user=>[:data_passer] do|t|
+    task :data_user => [:data_passer] do|t|
         puts t[:data_passer]
     end
 ```
@@ -251,9 +251,9 @@ minimal interference with your workflow. To create such an option, use the
 `Integrake.option` method, where the first argument is the name of the option
 and the rest of the arguments are the options to choose from:
 ```ruby
-    Integrake.option :color,:red,:green,:blue
+    Integrake.option :color, :red,:green,:blue
 
-    task :print_chosen_color=>[:color] do|t|
+    task :print_chosen_color => [:color] do|t|
         puts t[:color]
     end
 ```
@@ -265,8 +265,8 @@ need to run `:IR color` directly.
 You can also use hash arguments:
 ```ruby
     Integrake.option :number,
-        'ten'=>10,
-        'twenty'=>20
+        'ten' => 10,
+        'twenty' => 20
 ```
 With this, the keys will be displayed when you are prompted, but the data
 you'll get with the subscript operator is the value of the chosen key.

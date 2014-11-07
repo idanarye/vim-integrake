@@ -3,11 +3,11 @@ function! integrake#runInShell(cmd)
     return v:shell_error
 endfunction
 
-function! integrake#invoke(line1,line2,count,...)
-    if a:0>0
-        ruby Integrake.invoke(*Integrake.vim_read_vars('a:line1','a:line2','a:count'),*VIM::evaluate('a:000'))
+function! integrake#invoke(line1, line2, count, ...)
+    if a:0 > 0
+        ruby Integrake.invoke(*Integrake.vim_read_vars('a:line1', 'a:line2', 'a:count'), *VIM::evaluate('a:000'))
     else
-        ruby Integrake.prompt_and_invoke(*Integrake.vim_read_vars('a:line1','a:line2','a:count'))
+        ruby Integrake.prompt_and_invoke(*Integrake.vim_read_vars('a:line1', 'a:line2', 'a:count'))
     endif
 endfunction
 
@@ -29,8 +29,8 @@ function! integrake#editTask_vsplit(task)
     ruby Integrake.edit_task(VIM::evaluate('a:task'))
 endfunction
 
-function! integrake#complete(argLead,cmdLine,cursorPos)
-    ruby Integrake.vim_return_value(Integrake.complete(*Integrake.vim_read_vars('a:argLead','a:cmdLine','a:cursorPos')))
+function! integrake#complete(argLead, cmdLine, cursorPos)
+    ruby Integrake.vim_return_value(Integrake.complete(*Integrake.vim_read_vars('a:argLead', 'a:cmdLine', 'a:cursorPos')))
 endfunction
 
-ruby load File.join(VIM::evaluate("expand('<sfile>:p:h')"),'integrake.rb')
+ruby load File.join(VIM::evaluate("expand('<sfile>:p:h')"), 'integrake.rb')
