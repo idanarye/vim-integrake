@@ -90,6 +90,15 @@ class IntegrakeEnvironment
         end
     end
 
+    def do_and_return_to_this_window
+        original_window = VIM::Window.current
+        begin
+            yield
+        ensure
+            original_window.jump
+        end
+    end
+
     def find_window_numbers(window_identifier)
         if window_identifier.is_a? Integer
             if 0 < window_identifier and window_identifier <= VIM::Window.count
@@ -113,16 +122,13 @@ class IntegrakeEnvironment
 
         if window_identifier.is_a? Proc
             if 0 == window_identifier.arity
-                original_window = winnr()
-                begin
+                do_and_return_to_this_window do
                     return VIM::Window.count.times.map do|i|
-                        cmd "#{i + 1}wincmd w"
+                        VIM::command "#{i + 1}wincmd w"
                         if window_identifier.call
                             i + 1
                         end
                     end.compact
-                ensure
-                    cmd "#{original_window}wincmd w"
                 end
             elsif window_identifier.arity <= 2
                 identifier_proc = if 1 == window_identifier.arity
@@ -155,17 +161,14 @@ class IntegrakeEnvironment
             return ({}) if window_identifier.empty?
         end
         window_numbers = find_window_numbers(window_identifier)
-        original_window = winnr()
-        result = {}
-        begin
+        do_and_return_to_this_window do
+            result = {}
             window_numbers.each do|window_number|
-                cmd "#{window_number}wincmd w"
+                VIM::command "#{window_number}wincmd w"
                 result[window_number] = yield
             end
-        ensure
-            cmd "#{original_window}wincmd w"
+            return result
         end
-        return result
     end
 
     def do_in_window(window_identifier, &block)
@@ -237,6 +240,31 @@ class TrueClass
     end
 end
 
+class VIM::Window
+    def number
+        VIM::Window.count.times.select do|i|
+            if self == VIM::Window[i]
+                return i + 1
+            end
+        end
+        return nil
+    end
+
+    def jump
+        target = self.number
+        if target
+            VIM::command "#{target}wincmd w"
+        end
+    end
+
+    def do_in_here
+        Integrake.environment.do_and_return_to_this_window do
+            self.jump
+            yield
+        end
+    end
+end
+
 class Rake::Task
     def direct_dependants
         search_next = application.top_level_tasks.clone
@@ -291,6 +319,10 @@ module Integrake
     @@integrake_environment = IntegrakeEnvironment.new
     @@integrake_environment.instance_eval 'Object.include Kernel'
     @@integrake_environment.instance_eval 'Object.include Rake::DSL'
+
+    def self.environment
+        return @@integrake_environment
+    end
 
     def self.vim_exists_code(identifier)
         return VIM::evaluate("exists('#{identifier}')")
@@ -584,5 +616,41 @@ module Integrake
         else
             ChooseOptionTask::define_task name, options
         end
+    end
+
+    class PrepareWindowTask < Rake::Task
+        def needed?
+            return true
+        end
+
+        def self.define_task(*args,&block)
+            tsk = Rake.application.define_task self, *args do|t, args|
+                already_prepared_window = Integrake.environment.find_window_number -> do
+                    VIM::evaluate('getwinvar(0, "integrake_preparedWindowForTask")').include? t.name
+                end
+                if already_prepared_window
+                    t.pass_data VIM::Window[already_prepared_window - 1]
+                else
+                    Integrake.environment.do_and_return_to_this_window do
+                        old_windows = VIM::Window.count.times.map{|i| VIM::Window[i]}
+                        block.call t, args
+                        if old_windows.include? VIM::Window.current
+                            raise 'Window preparation command should create a new window'
+                        end
+                        t.pass_data VIM::Window.current
+                        if 0 < VIM::evaluate('type([]) == getwinvar(0, "integrake_preparedWindowForTask")')
+                            VIM::command "call add(w:integrake_preparedWindowForTask, #{t.name.to_vim})"
+                        else
+                            VIM::command "let w:integrake_preparedWindowForTask = [#{t.name.to_vim}]"
+                        end
+                    end
+                end
+            end
+            tsk.locations << caller.select{|e|not e.start_with? __FILE__}.first
+        end
+    end
+
+    def self.window(*args, &block)
+        PrepareWindowTask::define_task *args, &block
     end
 end

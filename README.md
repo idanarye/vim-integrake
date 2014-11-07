@@ -242,11 +242,11 @@ integrake file:
 Calling `:IR data_user` will print "some data".
 
 
-OPTIONS CHOOSER MECHANISM
-=========================
+OPTIONS CHOOSER TASKS
+=====================
 
-Integrake's options chooser mechanism allows you to define options you can use
-in your tasks, with a selection interface that remembers your decisions for
+Integrake's options chooser tasks allows you to define options you can use in
+your tasks, with a selection interface that remembers your decisions for
 minimal interference with your workflow. To create such an option, use the
 `Integrake.option` method, where the first argument is the name of the option
 and the rest of the arguments are the options to choose from:
@@ -270,3 +270,35 @@ You can also use hash arguments:
 ```
 With this, the keys will be displayed when you are prompted, but the data
 you'll get with the subscript operator is the value of the chosen key.
+
+
+WINDOW PREPARATION TASKS
+
+Sometimes you need a window to be there before you run a plugin. For example,
+using the vimshell plugin, you might want to open a vimshell terminal and
+run "make" in it. However, you don't want to open the terminal if it's alredy
+open. So - you use the `Integrake.window` helper to build a window preparation
+task:
+
+```ruby
+Integrake.window :'open-shell' do
+    VimShellCreate '-split'
+end
+
+task :build => :'open-shell' do|t|
+    VimShellSendString 'make'
+end
+```
+
+With this, when we run `:IR build` it'll first call the "open-shell" task,
+which will create the vimshell window, and then run "make" in it. If we call it
+again, it'll recognize the window is already open and not create it again.  But
+if we close the vimshell window and run it, it won't be able to find that
+window and reopen it. That way the "build" task will always have a vimshell
+window, be it a freshly created one or an already existing one.
+
+A window preparation task will use the integrake `pass_data` mechanism to pass
+the window object of that window.
+
+A window preparation task must end when the active window is a new window. If
+the active window already existed before the task the task will fail.
