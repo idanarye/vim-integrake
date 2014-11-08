@@ -30,7 +30,11 @@ function! integrake#editTask_vsplit(task)
 endfunction
 
 function! integrake#complete(argLead, cmdLine, cursorPos)
-    ruby Integrake.vim_return_value(Integrake.complete(*Integrake.vim_read_vars('a:argLead', 'a:cmdLine', 'a:cursorPos')))
+    ruby Integrake.vim_return_value(Integrake.complete(*Integrake.vim_read_vars('a:argLead', 'a:cmdLine', 'a:cursorPos'), false))
+endfunction
+
+function! integrake#completeIncludeTaskArgs(argLead, cmdLine, cursorPos)
+    ruby Integrake.vim_return_value(Integrake.complete(*Integrake.vim_read_vars('a:argLead', 'a:cmdLine', 'a:cursorPos'), true))
 endfunction
 
 ruby load File.join(VIM::evaluate("expand('<sfile>:p:h')"), 'integrake.rb')

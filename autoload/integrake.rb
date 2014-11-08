@@ -286,15 +286,18 @@ class Rake::Task
 
         result
     end
+
     def set_passed_data(passed_from, data)
         @integrake_data_from_prerequisite = {} unless @integrake_data_from_prerequisite
         @integrake_data_from_prerequisite[passed_from.to_s] = data
     end
+
     def pass_data(data)
         direct_dependants.each do|dd|
             dd.set_passed_data name.to_s,data
         end
     end
+
     def [](prerequisite_name)
         prerequisite_name = prerequisite_name.to_s
         if @integrake_data_from_prerequisite and @integrake_data_from_prerequisite.has_key?(prerequisite_name)
@@ -306,6 +309,33 @@ class Rake::Task
         else
             raise "Task '#{prerequisite_name}' did not pass any data to '#{name}'"
         end
+    end
+
+    def complete(*args, &block)
+        @integrake_complete_functions = [] unless defined? @integrake_complete_functions
+        if not args.empty?
+            completer = Integrake.get_completer(args[0])
+            raise "No completion method named #{args[0]}" unless completer
+            @integrake_complete_functions << completer.call(*args[1 .. -1])
+        elsif block
+            @integrake_complete_functions << block
+        else
+            raise 'No completion method given'
+        end
+        return self
+    end
+
+    def get_completions(parts)
+        return [] unless defined? @integrake_complete_functions
+        result = []
+        @integrake_complete_functions.each do|complete_function|
+            begin
+                result += complete_function.call(parts)
+            rescue
+            end
+        end
+        result.uniq!
+        return result.uniq
     end
 end
 
@@ -485,10 +515,32 @@ module Integrake
         end
     end
 
-    def self.complete(argLead,cmdLine,cursorPos)
+    def self.complete(arg_lead, cmd_line, cursor_pos, include_task_args)
+        cmd_line_before_cursor = cmd_line[0 .. cursor_pos.to_i - 1]
+        parts = cmd_line_before_cursor.scan(/(?:[^\\\s]|(?:\\\\)|(?:\\\s))+/).map{|part| part.gsub(/\\(.)/, '\1')}
+        if cmd_line_before_cursor =~ /\s$/
+            parts << ''
+        end
+        task_name_completion = parts.length == 2
+        unless include_task_args or task_name_completion
+            return []
+        end
         if Integrake.prepare
             begin
-                return Rake::Task.tasks.map{|e| e.name}.select{|e| e.start_with?(argLead)}
+                if task_name_completion
+                    return Rake::Task.tasks.map{|e| e.name}.select{|e| e.start_with?(arg_lead)}
+                else
+                    task_name = parts[1]
+                    begin
+                        task = Rake::Task[task_name]
+                    rescue
+                        return []
+                    end
+                    def parts.filter_completions(completions)
+                        completions.select{|completion| completion.start_with? self.last}
+                    end
+                    return task.get_completions(parts)
+                end
             rescue => exception
                 Integrake.puts_error exception
             end
@@ -653,4 +705,51 @@ module Integrake
     def self.window(*args, &block)
         PrepareWindowTask::define_task *args, &block
     end
+
+    def self.register_completer(name, &block)
+        @@completers = {} unless defined? @@completers
+        @@completers[name] = block
+    end
+
+    def self.get_completer(name)
+        if defined? @@completers
+            return @@completers[name]
+        end
+    end
+end
+
+filename_completer_creator = ->(root_path, dirs_only, for_arg_positions) do
+    lambda do|parts|
+        if for_arg_positions.nil? or for_arg_positions.include?(parts.length - 3)
+            require 'shellwords'
+            path_parts = split_all(parts.last)
+            if parts.last.end_with? File::SEPARATOR or parts.last.end_with? '/'
+                path_parts << ''
+            end
+            dir_parts = path_parts[0 .. -2]
+            Dir.foreach(File.join(root_path, *dir_parts)).map do|filename|
+                unless ['.', '..'].include? filename
+                    if filename.start_with? path_parts.last
+                        if File.directory? File.join(root_path, *dir_parts, filename)
+                            File.join(*dir_parts, "#{Shellwords.escape(filename)}#{File::SEPARATOR}")
+                        elsif not dirs_only
+                            File.join(*dir_parts, Shellwords.escape(filename))
+                        end
+                    end
+                end
+            end.compact
+        end
+    end
+end
+Integrake.register_completer :file do|root_path = '.'|
+    filename_completer_creator.call root_path, false, [0]
+end
+Integrake.register_completer :dir do|root_path = '.'|
+    filename_completer_creator.call root_path, true, [0]
+end
+Integrake.register_completer :files do|root_path = '.'|
+    filename_completer_creator.call root_path, false, nil
+end
+Integrake.register_completer :dirs do|root_path = '.'|
+    filename_completer_creator.call root_path, true, nil
 end
