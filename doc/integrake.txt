@@ -278,6 +278,12 @@ You can also use hash arguments:
 With this, the keys will be displayed when you are prompted, but the data
 you'll get with the subscript operator is the value of the chosen key.
 
+When running the task directly, you can also pass the chosen option as an
+argument.
+
+Integrake.option will also create a task with the same name + a question
+mark(e.g. :color? and :number?), which will print the currently chosen option.
+
 
 WINDOW PREPARATION TASKS                     *integrake-window-preparation*
 
@@ -347,6 +353,8 @@ The prepared autocompletion supplied with Integrake are:
    root for searching.
  - :dirs - directory for all arguments. Accepts a second argument as the root
    for searching.
+ - :list - items from a list for all arguments. Accepts a second argument as
+   the list of completion possibilities.
 
 To create your own prepared autocompletion, use
 *Integrake.register_completer*. Pass to it as argument the name of the

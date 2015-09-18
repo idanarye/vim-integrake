@@ -624,13 +624,23 @@ module Integrake
                                else
                                    options
                                end
-            tsk = Rake.application.define_task self, name do|t|
+            options_strings = options_captions.map(&:to_s)
+            tsk = Rake.application.define_task self, name, [:option] do|t, args|
                 if options.is_a? Hash
                     @@cache.delete name if options[@@cache[name]].nil?
                 else
                     @@cache.delete name unless options.include? @@cache[name]
                 end
-                if Rake.application.top_level_tasks.include?(name.to_s) or @@cache[name].nil?
+                if not args[:option].nil?
+                    chosen_index = options_strings.index(args[:option])
+                    chosen_option = if chosen_index.nil?
+                                        puts "'#{args[:option]}' is not a valid option for #{name}"
+                                        chosen_option = nil
+                                    else
+                                        options_captions[chosen_index]
+                                    end
+                    @@cache[name] = chosen_option
+                elsif Rake.application.top_level_tasks.include?(name.to_s) or @@cache[name].nil?
                     chosen_option = prompt_for_options(name, options_captions)
                     @@cache[name] = chosen_option
                 else
@@ -643,6 +653,17 @@ module Integrake
                 end
             end
             tsk.locations << caller.select{|e| not e.start_with? __FILE__}.first
+
+            tsk.complete :list, options_strings
+
+            Rake.application.define_task self, :"#{name}?" do
+                chosen_option = @@cache[name]
+                if chosen_option.nil?
+                    puts "#{name} not selected"
+                else
+                    puts "#{name}: #{chosen_option}"
+                end
+            end
         end
 
         private
@@ -752,4 +773,9 @@ Integrake.register_completer :files do|root_path = '.'|
 end
 Integrake.register_completer :dirs do|root_path = '.'|
     filename_completer_creator.call root_path, true, nil
+end
+Integrake.register_completer :list do|items|
+    lambda do|parts|
+        parts.filter_completions(items)
+    end
 end
