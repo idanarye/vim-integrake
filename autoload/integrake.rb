@@ -174,6 +174,37 @@ class IntegrakeEnvironment
     def do_in_window(window_identifier, &block)
         return do_in_windows(find_window_number(window_identifier), &block).values.first
     end
+
+    def input_list(prompt, options)
+        take_from = 0
+        while take_from < options.length
+            take_this_time = VAR['&lines'] - 2
+            more_items_remaining = take_from + take_this_time < options.length
+            if more_items_remaining
+                take_this_time -= 1
+            end
+            options_slice = options[take_from ... (take_from + take_this_time)]
+            take_from += take_this_time
+
+            number_length = options_slice.count.to_s.length
+
+            list_for_input_query = (more_items_remaining ? options_slice + ["*MORE*"] : options_slice).each_with_index.map do|option, index|
+                index_text = (index + 1).to_s
+                "#{index_text})#{' '*(number_length - index_text.length)} #{option}"
+            end
+            list_for_input_query.unshift(prompt)
+            chosen_option_number = VIM::evaluate("inputlist(#{list_for_input_query.to_vim})")
+
+            if more_items_remaining and chosen_option_number == options_slice.length + 1
+                puts ' '
+                next
+            elsif chosen_option_number < 1 or options_slice.length < chosen_option_number
+                return nil
+            else
+                return options_slice[chosen_option_number - 1]
+            end
+        end
+    end
 end
 
 VAR = Object.new
@@ -641,7 +672,8 @@ module Integrake
                                     end
                     @@cache[name] = chosen_option
                 elsif Rake.application.top_level_tasks.include?(name.to_s) or @@cache[name].nil?
-                    chosen_option = prompt_for_options(name, options_captions)
+                    #chosen_option = prompt_for_options(name, options_captions)
+                    chosen_option = Integrake.environment.input_list("Chose #{name}:", options_captions)
                     @@cache[name] = chosen_option
                 else
                     chosen_option = @@cache[name]

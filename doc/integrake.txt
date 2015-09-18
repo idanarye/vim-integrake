@@ -214,6 +214,20 @@ window.
 "do_in_window" runs "find_window_number" on it's argument and runs it's block
 in the context of the returned window. It returns the result of the block.
 
+"input_list" is an improved version of Vim's |inputlist()|. It accepts two
+arguments - "prompt" and "options" - where "prompt" is the text to put at the
+top and "options" is the list of options to let the user choose from.
+Improvements over Vim's |inputlist()|:
+ - Option 0 is always the prompt - so we can tell the difference between
+   user-chose-nothing and user-chose-the-first-option.
+ - Selection numbers are displayed next to the selections, to let the user
+   know what to type.
+ - If there are too many options to fit in the screen, input_list displays
+   only as much options as can be fit in the screen, with a "*MORE*" option
+   for displaying the next bunch.
+ - The returned value is not the number the user has typed, but the item from
+   the list(or nil if the user chose nothing)
+
 
 LOADING RUBY FILES                           *integrake-loading-ruby-files*
 
