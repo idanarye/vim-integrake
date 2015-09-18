@@ -204,6 +204,50 @@ converted to Vim lists. Ruby hashes are converted to Vim dictionaries. Ruby
 Everything else is converted to a string.
 
 
+`find_window_numbers` scans the window numbers and returns an ordered and
+unique list of the window numbers(1-based, like in Vim's `window-functions`) of the
+windows that fulfill the criterion specified in the argument:
+ - If the argument is an integer, check that it is in the range of valid
+   window numbers and return it.
+ - If the argument is an array, return all window number that fulfill any one
+   of the entries.
+ - If the argument is a regular expression, return all window numbers that
+   their buffer name matches that regex.
+ - If the argument is a proc, use that proc as a predicate to determine which
+   window numbers to return:
+   - For argument-less procs, enter each window and run the predicate in the
+     context of the window.
+   - For procs with a single argument, remain in the current window and send
+     the window number to the predicate.
+   - For procs with two arguments, remain in the current window and send
+     the window number and the VIM::Window object to the predicate.
+
+`find_window_number` is like `find_window_numbers` but returns only the first
+result(or nil for no matches)
+
+`do_in_windows` runs `find_window_numbers` on it's argument and runs it's block
+in the context of the returned windows. It returns an Hash where the keys are
+the window numbers and the values are the results of the block ran in each
+window.
+
+`do_in_window` runs `find_window_number` on it's argument and runs it's block
+in the context of the returned window. It returns the result of the block.
+
+`input_list` is an improved version of Vim's `inputlist()`. It accepts two
+arguments - `prompt` and `options` - where "prompt" is the text to put at the
+top and "options" is the list of options to let the user choose from.
+Improvements over Vim's `inputlist()`:
+ - Option 0 is always the prompt - so we can tell the difference between
+   user-chose-nothing and user-chose-the-first-option.
+ - Selection numbers are displayed next to the selections, to let the user
+   know what to type.
+ - If there are too many options to fit in the screen, `input_list` displays
+   only as much options as can be fit in the screen, with a `*MORE*` option
+   for displaying the next bunch.
+ - The returned value is not the number the user has typed, but the item from
+   the list(or nil if the user chose nothing)
+
+
 LOADING RUBY FILES
 ==================
 
@@ -269,6 +313,12 @@ Integrake.option :number,
 ```
 With this, the keys will be displayed when you are prompted, but the data
 you'll get with the subscript operator is the value of the chosen key.
+
+When running the task directly, you can also pass the chosen option as an
+argument.
+
+Integrake.option will also create a task with the same name + a question
+mark(e.g. `:color?` and `:number?`), which will print the currently chosen option.
 
 
 WINDOW PREPARATION TASKS
@@ -347,6 +397,8 @@ The prepared autocompletion supplied with Integrake are:
    root for searching.
  - `:dirs` - directory for all arguments. Accepts a second argument as the root
    for searching.
+ - `:list` - items from a list for all arguments. Accepts a second argument as
+   the list of completion possibilities.
 
 To create your own prepared autocompletion, use
 `Integrake.register_completer`. Pass to it as argument the name of the
