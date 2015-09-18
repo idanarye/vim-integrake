@@ -457,11 +457,11 @@ module Integrake
                    }
                end
         if $range and [:char, :block].include?($range[:type])
-            if $range[:line1] == vim_call(:line, "'<") and $range[:line2]==vim_call(:line, "'>")
-                $range[:col1] = vim_call(:col, "'<")
-                $range[:col2] = vim_call(:col, "'>")
-                $range[:vcol1] = vim_call(:virtcol, "'<")
-                $range[:vcol2] = vim_call(:virtcol, "'>")
+            if $range[:line1] == @@integrake_environment.vim_call(:line, "'<") and $range[:line2] == @@integrake_environment.vim_call(:line, "'>")
+                $range[:col1] = @@integrake_environment.vim_call(:col, "'<")
+                $range[:col2] = @@integrake_environment.vim_call(:col, "'>")
+                $range[:vcol1] = @@integrake_environment.vim_call(:virtcol, "'<")
+                $range[:vcol2] = @@integrake_environment.vim_call(:virtcol, "'>")
             else
                 $range[:type] = :line
             end
